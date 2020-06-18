@@ -1,0 +1,466 @@
+local dbIDV = 0
+local carpID, carpID2 = 1, nil
+local function modem()
+    local side = {"left", "right", "top", "bottom", "front", "back"}
+    local flag = false
+    for i=1,6 do
+        if peripheral.isPresent(side[i])==true then
+            if peripheral.getType(side[i])=="modem" then
+                flag = true
+                if rednet.isOpen(side[i])==false then
+                    rednet.open(side[i])
+                end
+            end
+        end
+    end
+    if flag==false then
+        term.setTextColor(colors.red)
+        write("Please connect an Ender Modem!\n")
+        term.setTextColor(colors.white)
+        return false
+    else
+        return true
+    end
+end
+local function SaveFile(name, data)
+    local file = fs.open(name, "w", "sys")
+    file.write(data)
+    file.close()
+end
+local function SearchOp(k)
+    local file = fs.open("options", "r", "sys")
+    local i = 0
+    for key,v in pairs(textutils.unserialise(file.readAll())) do
+        i = i + 1
+        if k==key then
+            return v
+        end
+    end
+    file.close()
+end
+function OnlineStatus()
+    if modem()==true then
+        local ver = SearchOp("version")
+        term.setTextColor(colors.lightBlue)
+        write("Version: ")
+        term.setTextColor(colors.yellow)
+        write(ver..".\n")
+        rednet.send(dbIDV, " ", "STATUS")
+        local id, msg, protocol = rednet.receive("ONLINE", 5)
+        term.setTextColor(colors.lightBlue)
+        write("Server Status: ")
+        if protocol=="ONLINE" then
+            term.setTextColor(colors.lime)
+            write("online!\n")
+            term.setTextColor(colors.white)
+            local position = vector.new(gps.locate(1))
+            rednet.send(dbIDV, position, "location")
+        else
+            term.setTextColor(colors.red)
+            write("offline!\n")
+            term.setTextColor(colors.white)
+        end
+    end
+end
+function UserList()
+    if modem()==true then
+        rednet.send(dbIDV, " ", "LIST")
+        term.setTextColor(colors.lightBlue)
+        local id, msgf, protocol = rednet.receive("LISTED")
+        write(tostring(msgf))
+        term.setTextColor(colors.white)
+    end
+end
+function VersionCheck()
+    local ver = SearchOp("version")
+    if modem()==true then
+        rednet.send(dbIDV, ver, "vcheck")
+        local id, msg, prot = rednet.receive("rvcheck", 5)
+        if msg=="outdated" then
+            local data = http.get("https://pastebin.com/raw/JUN5F362")
+            SaveFile("updatefiles", data.readAll())
+            data.close()
+            dofile("updatefiles")
+        elseif msg=="uptodate" then
+            term.setTextColor(colors.lime)
+            write("Up to Date!\n")
+            term.setTextColor(colors.white)
+        end
+    end
+end
+function Send()
+    local sx, sy = term.getSize()
+    local x, y = 1, 1
+    local msgg = ""
+    local msg = ""
+    local id = 0
+    if modem()==true then
+        term.clear()
+        term.setCursorPos(1, 1)
+        term.setTextColor(colors.red)
+        for i=1,10 do
+            write("-")
+        end
+        term.setCursorPos(1, 2)
+        write("|")
+        term.setCursorPos(10, 2)
+        write("|")
+        term.setCursorPos(1, 3)
+        for i=1,10 do
+            write("-")
+        end
+        term.setCursorPos(37, 2)
+        term.setTextColor(colors.lime)
+        write("Current ID: ")
+        term.setTextColor(colors.red)
+        write(os.getComputerID())
+        term.setCursorPos(2, 2)
+        term.setTextColor(colors.lightBlue)
+        write("ID: ")
+        term.setTextColor(colors.yellow)
+        id = read()
+        id = tonumber(id)
+        if type(id)=="number" then
+            x = 1
+            y = 10
+            term.setTextColor(colors.red)
+            term.setTextColor(colors.lightBlue)
+            term.setCursorPos(1, 9)
+            write("Enter a message to send (exit() to exit).")
+            term.setCursorPos(x, y)
+            term.setTextColor(colors.red)
+            for x=1,51 do
+                write("-")
+            end
+            y = 11
+            term.setCursorPos(1, y)
+            rednet.send(dbIDV, tostring(id), "RSEARCH")
+            numid, username, protocol = rednet.receive("USER")
+            term.setTextColor(colors.yellow)
+            msg = read()
+            if SearchOp("name")~="" then
+                msgg = SearchOp("name").." -> "
+            else
+                msgg = tostring(os.getComputerID()).." -> "
+            end
+            msgg = msgg..username
+            msgg = msgg..": "
+            msgg = msgg..msg
+            while msg ~= "exit()" do
+                term.setCursorPos(1, y)
+                term.clearLine()
+                rednet.send(id, msgg)
+                term.setTextColor(colors.yellow)
+                msg = read()
+                if SearchOp("name")~="" then
+                    msgg = SearchOp("name").." -> "
+                else
+                    msgg = os.getComputerID().." -> "
+                end
+                    msgg = msgg..username
+                msgg = msgg..": "
+                msgg = msgg..msg
+                term.setTextColor(colors.white)
+            end
+        else
+            term.clear()
+            term.setCursorPos(1, 1)
+            term.setTextColor(colors.red)
+            write("ID HAS TO BE A NUMBER!")
+            term.setTextColor(colors.yellow)
+            term.setCursorPos(1, 2)
+            write("Press any key to continue!")
+            os.pullEventRaw("key")
+        end
+    end
+    term.clear()
+    term.setCursorPos(1, 1)
+    term.setTextColor(colors.white)
+end
+function SendMulti(a, b, c, d, e, f, g, h, i, j)
+    local ids = {a, b, c, d, e, f, g, h, i, j}
+    if modem()==true then
+        local usid, usname, multprot = "", "", ""
+        local names = {"", "", "", "", "", "", "", "", "", ""}
+        for i=1,10 do
+            if ids[i]~=nil then
+                rednet.send(dbIDV, tostring(ids[i]), "RSEARCH")
+                usid, usname, multiprot = rednet.receive("USER")
+                names[i] = tostring(usname)
+            end
+        end
+        local sp = ", "
+        term.clear()
+        x = 1
+        y = 1
+        term.setCursorPos(x, y)
+        term.setTextColor(colors.lightBlue)
+        write("IDs: ")
+        term.setTextColor(colors.yellow)
+        write(ids[1])
+        for i=2,10 do
+            if ids[i]~=nil then
+                term.setTextColor(colors.lightBlue)
+                write(sp)
+                term.setTextColor(colors.yellow)
+                write(ids[i])
+            end
+        end
+        y = 9
+        term.setTextColor(colors.lightBlue)
+        term.setCursorPos(x, y)
+        write("Enter a message to send (exit() to exit).")
+        term.setCursorPos(x, 10)
+        term.setTextColor(colors.red)
+        for x=1,51 do
+            write("-")
+        end
+        local msg = ""
+        while msg ~= "exit()" do
+            term.setCursorPos(1, 11)
+            term.clearLine()
+            term.setTextColor(colors.yellow)
+            msg = read()
+            local msgg = ""
+            for i=1,10 do
+                if msg~="exit()" then
+                    if SearchOp("name")~="" then
+                        msgg = tostring(SearchOp("name")).." -> "
+                    else
+                        msgg = tostring(os.getComputerID()).." -> "
+                    end
+                    msgg = msgg..tostring(names[i])
+                    msgg = msgg..": "
+                    msgg = msgg..msg
+                    if ids[i]~=nil then
+                        rednet.send(ids[i], msgg)
+                    end
+                    term.setTextColor(colors.white)
+                end
+            end
+        end
+    end
+    term.setTextColor(colors.white)
+    term.clear()
+    term.setCursorPos(1, 1)
+end
+function Broadcast()
+    if modem()==true then
+        local msg = nil
+        term.clear()
+        term.setCursorPos(19, 1)
+        term.setTextColor(colors.red)
+        write("()Broadcast")
+        term.setCursorPos(1, 2)
+        for x=1,51 do
+            write("-")
+        end
+        term.setCursorPos(1, 9)
+        term.setTextColor(colors.lightBlue)
+        write("Please enter a message to broadcast")
+        term.setCursorPos(1, 10)
+        term.setTextColor(colors.red)
+        for x=1,51 do
+            write("-")
+        end
+        term.setTextColor(colors.yellow)
+        term.setCursorPos(1, 11)
+        if SearchOp("name")~="" then
+            msg = SearchOp("name")
+        else
+            msg = os.getComputerID()
+        end
+        msg = msg..": "
+        term.setTextColor(colors.yellow)
+        msg = msg..read()
+        rednet.broadcast(msg, "BROADCAST")
+        term.setTextColor(colors.white)
+        term.clear()
+        term.setCursorPos(1, 1)
+    end
+end
+local function CopyOp()
+    local file = fs.open("options", "r", "sys")
+    local data = textutils.unserialise(file.readAll())
+    file.close()
+    return data
+end
+local function IsPassProtected()
+    if (tostring(SearchOp("passquestion"))~="") and (tostring(SearchOp("password"))~="") then
+        return true
+    else
+        return false
+    end
+end
+function SetPassword()
+    local data = CopyOp()
+    local passq = ""
+    local pass = ""
+    term.setTextColor(colors.lightBlue)
+    write("Please enter the Password Question: \n")
+    term.setTextColor(colors.yellow)
+    passq = tostring(read())
+    term.setTextColor(colors.lightBlue)
+    write("\nPlease enter the Answer: \n")
+    term.setTextColor(colors.yellow)
+    pass = tostring(read())
+    data.passquestion = passq
+    data.password = pass
+    data = textutils.serialise(data)
+    SaveFile("options", data)
+    term.setTextColor(colors.white)
+end
+function Login(isReal)
+    if isReal==true then
+        local oldPullEvent = os.pullEvent
+        if IsPassProtected()==true then
+            os.pullEvent = os.pullEventRaw
+            term.setTextColor(colors.lightGray)
+            write(SearchOp("passquestion").."\n")
+            term.setTextColor(colors.yellow)
+            local answer = tostring(read('*'))
+            if answer==tostring(SearchOp("password")) then
+                term.setTextColor(colors.lime)
+                write("\nCORRECT!\n")
+                term.setTextColor(colors.lightGray)
+                write("Press any key to continue!")
+                local event, but = os.pullEvent("key")
+                term.clear()
+                term.setCursorPos(1, 1)
+            else
+                term.setTextColor(colors.red)
+                write("\nINCORRECT!\n")
+                term.setTextColor(colors.lightGray)
+                write("Press any key to retry!")
+                local event, bt = os.pullEvent("key")
+                os.reboot()
+            end
+        end
+        if SearchOp("name")~="" then
+            term.setTextColor(colors.lightBlue)
+            write("Hello, "..SearchOp("name").."!\n")
+        end
+        os.pullEvent = oldPullEvent
+    else
+        term.setTextColor(colors.red)
+        write("ACCESS DENIED!\n")
+    end
+    term.setTextColor(colors.white)
+end
+function SetName(name)
+    if modem()==true then
+        local data = CopyOp()
+        rednet.send(dbIDV, tostring(name), "UREGISTER")
+        if type(name)~="string" then
+            if type(name)==nil then
+                term.setTextColor(colors.red)
+                write("Please enter a parameter of type String!\n")
+                term.setTextColor(colors.white)
+            end
+            term.setTextColor(colors.red)
+            write("Bad Argument: String Expected!\n")
+            term.setTextColor(colors.white)
+            return
+        else
+            local data = CopyOp()
+            data.name = name
+            data = textutils.serialise(data)
+            SaveFile("options", data)
+        end
+    end
+end
+function IsExp()
+    if SearchOp("exp")==true then
+        return true
+    else
+        return false
+    end
+end
+function ExpMode(modet)
+    local mode = modet
+    if (mode==true) or (mode==false) then
+        local data = CopyOp()
+        data.exp = mode
+        data = textutils.serialise(data)
+        SaveFile("options", data)
+        term.setTextColor(colors.lightGray)
+        write("Experimental features are now: ")
+        term.setTextColor(colors.yellow)
+        if mode==true then
+            write("Enabled!\n")
+        else
+            write("Disabled!\n")
+        end
+        term.setTextColor(colors.white)
+    else
+        term.setTextColor(colors.lightGray)
+        write("Experimental mode is currently: ")
+        term.setTextColor(colors.yellow)
+        if IsExp()==true then
+            write("Enabled!\n")
+        else
+            write("Disabled!\n")
+        end
+        term.setTextColor(colors.white)
+    end
+end
+function SetTime()
+    term.setTextColor(colors.lightBlue)
+    write("Enter the current HOUR in 24-hour format\n(range: 0 to 23 ex: 13): ")
+    term.setTextColor(colors.yellow)
+    local cHour = read()
+    write("\n")
+    local utcTime = textutils.formatTime(os.time("utc"), true)
+    local utcHour = nil
+    local Diff = nil
+    if string.sub(utcTime, 2, 2)==":" then
+        utcHour = tonumber(string.sub(utcTime, 1, 1))
+    else
+        utcHour = tonumber(string.sub(utcTime, 1, 2))
+    end
+    Diff = cHour - utcHour
+    local data = CopyOp()
+    data.timediff = Diff
+    data = textutils.serialise(data)
+    SaveFile("options", data)
+    term.setTextColor(colors.white)
+end
+function Time()
+    if SearchOp("timediff")==nil then
+        SetTime()
+    end
+    local utcHour = nil
+    local utcRest = nil
+    local cHour = SearchOp("timediff")
+    local utcTime = textutils.formatTime(os.time("utc"), true)
+    if string.sub(utcTime, 2, 2)==":" then
+        utcHour = tonumber(string.sub(utcTime, 1, 1))
+        utcRest = string.sub(utcTime, 2, string.len(utcTime))
+    else
+        utcHour = tonumber(string.sub(utcTime, 1, 2))
+        utcRest = string.sub(utcTime, 3, string.len(utcTime))
+    end
+    local totalTime = utcHour + cHour
+    if totalTime>23 then
+        if totalTime==24 then
+            totalTime = "00"
+        else
+            totalTime = totalTime - 24
+        end
+    end
+    totalTime = tostring(totalTime)..utcRest
+    term.setTextColor(colors.lightBlue)
+    write("Time: ")
+    term.setTextColor(colors.yellow)
+    write(totalTime.."\n")
+    term.setTextColor(colors.white)
+end
+function HighScore()
+    if modem()==true then
+        rednet.send(dbIDV, " ", "hiscore")
+        local id, msg, prot = rednet.receive("rhiscore", 4)
+        if msg~=nil then
+            write(msg)
+        end
+    end
+end

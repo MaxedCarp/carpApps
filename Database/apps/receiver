@@ -1,0 +1,125 @@
+local unreadCount = 0
+local carpID = 1
+local carpID2 = 20
+local curr = multishell.getCurrent()
+local blacklst = {
+    ["USER"] = true;
+    ["ONLINE"] = true;
+    ["LISTED"] = true;
+}
+local function time()
+    local time = textutils.formatTime(os.time("utc"), true)
+    local time2 = ""
+    if string.sub(time, 2, 2)==":" then
+        time2 = string.sub(time, 2, string.len(time))
+        time = tonumber(string.sub(time, 1, 1))+3
+        time = tostring(time)..time2
+    else
+        time2 = string.sub(time, 3, string.len(time))
+        time = tonumber(string.sub(time, 1, 2))+3
+        if time>=24 then
+            time = "0"..time2
+        else
+            time = tostring(time)..time2
+        end
+    end
+    return "["..time.."] "
+end
+local function save(file, tab, message)
+    local file = fs.open(file, "w", "sys")
+    if message~=nil then
+        table.insert(tab, time()..message)
+    end
+    file.write(textutils.serialise(tab))
+    file.close()
+end
+local function load(f)
+    local file = fs.open(f, "r", "sys")
+    local data = file.readAll()
+    file.close()
+    return textutils.unserialise(data)
+end
+local function wd()
+    local tab = load("logs")
+    local len = #tab
+    term.setTextColor(colors.lime)
+    term.setCursorPos(1, 1)
+    local x, y = 1, 1
+    if len>5 then
+        for i=(len-5),len do
+            y = y + 1
+            write(tab[i])
+            term.setCursorPos(1, y)
+        end
+    else
+        for i=1,len do
+            y = y + 1
+            write(tab[i])
+            term.setCursorPos(1, y)
+        end
+    end
+    term.setTextColor(colors.white)
+end
+term.clear()
+wd()
+local oldx, oldy = term.getCursorPos()
+term.setTextColor(colors.white)
+index = "Local ID: "..tostring(os.getComputerID()).."\n"
+term.write(tostring(index))
+oldy = oldy + 1
+term.setCursorPos(1, oldy + 1)
+oldy = oldy + 1
+term.write("Message Reader:")
+term.setCursorPos(1, oldy + 1)
+oldy = oldy + 1
+local function work()
+    while true do
+        local id, msg, protocol = rednet.receive()
+        if blacklst[protocol]~=true then
+            if multishell.getFocus()~=curr then
+                unreadCount = unreadCount + 1
+                multishell.setTitle(curr, "Unread MSG's: "..tostring(unreadCount))
+            end
+            if (protocol=="CARPORDER") and ((tonumber(id)==carpID) or tonumber(id)==carpID2) then
+                if msg=="sendfiles" then
+                    local data = load("logs")
+                    rednet.send(id, data, "receivefiles")
+                end
+            else
+                msgs = msg
+                term.setTextColor(colors.yellow)
+                if protocol~=nil then
+                    if protocol=="BROADCAST" then
+                        term.setTextColor(colors.red)
+                    end
+                    msgs = msg.." (PROTOCOL: \""..protocol.."\")"
+                end
+                tab = load("logs")
+                save("logs", tab, msgs)
+                write(time()..msgs)
+            end
+            protocol = nil
+            msgs = nil
+            msg = nil
+            oldx, oldy = term.getCursorPos()
+            term.setTextColor(colors.yellow)
+            term.setCursorPos(1, oldy + 1)
+            oldy = oldy + 1
+            if oldy==20 then
+                term.scroll(1)
+                oldy=19
+                term.setCursorPos(1, oldy)
+            end
+        end
+    end
+end
+local function resetCount()
+    while true do
+        local event, msid = os.pullEvent("switch_multishell")
+        if msid==curr then
+            unreadCount = 0
+            multishell.setTitle(curr, "Unread MSG's: "..tostring(unreadCount))
+        end
+    end
+end
+parallel.waitForAll(work, resetCount)

@@ -1,0 +1,12 @@
+function getRealTime()
+    local page = http.get("http://www.google.com/search?q=time&oq=time&aqs=chrome.1.69i60j69i59j69i60l3j69i65l2j69i60.1915j0j9&sourceid=chrome&ie=UTF-8")
+    local raw = page.readAll()
+    page.close()
+    local raw2 = ""
+    for a in raw:gmatch(">%d?%d:%d%d</div>") do raw2 = a end
+    local time = ""
+    for a in raw2:gmatch("%d?%d:%d%d") do time = a end
+    return time
+end
+write(getRealTime())
+sleep(5)

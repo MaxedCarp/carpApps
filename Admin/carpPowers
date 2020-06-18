@@ -1,0 +1,75 @@
+local dbIDV = 0
+local isActive = false
+local function passcode()
+    local passpt1 = string.sub(string.reverse(os.day()), 1, 1)
+    local passpt2 = nil
+    local passpt3 = nil
+    if string.sub(os.time(), 2, 2)~="." then
+        passpt2 = string.sub(os.time(), 1, 2)
+        passpt3 = tostring(tonumber(string.sub(os.time(), 4, 4))+1)
+    else
+        passpt2 = string.sub(os.time(), 1, 1)
+        passpt3 = tostring(tonumber(string.sub(os.time(), 3, 3))+1)
+    end
+    local pass = tonumber(passpt1) + tonumber(passpt2) + tonumber(passpt3)
+    return tostring(pass)
+end
+function Activate(password)
+    if tostring(password)==passcode() then
+        local flag = false
+        local side = {"left", "right", "top", "bottom", "front", "back"}
+        local isp = peripheral.isPresent
+        local ism = peripheral.getType
+        local rnio = rednet.isOpen
+        for i=1,6 do
+            if isp(side[i])==true then
+                if ism(side[i])=="modem" then
+                    if rnio(side[i])==false then
+                        rednet.open(side[i])
+                    end
+                    flag = true
+                end
+            end
+        end
+        if flag==false then
+            term.setTextColor(colors.red)
+            write("Please connect an Ender Modem!\n")
+            term.setTextColor(colors.white)
+        else
+            isActive = true
+        end
+        term.setTextColor(colors.lime)
+        write("ACCESS GRANTED!\n")
+        term.setTextColor(colors.white)
+    else
+        term.setTextColor(colors.red)
+        write("ACCESS DENIED!\n")
+        term.setTextColor(colors.white)
+    end
+end
+function Deactivate()
+    isActive = false
+    term.setTextColor(colors.yellow)
+    write("Deactivated!\n")
+    term.setTextColor(colors.white)
+end
+function ReceiveFiles(id)
+    if isActive==true then
+        rednet.send(id, "sendfiles", "CARPORDER")
+        local rid, msg, protocol = rednet.receive("receivefiles", 5)
+        if protocol==nil then
+            term.setTextColor(colors.yellow)
+            write("No response from computer: "..id..".\n")
+            term.setTextColor(colors.white)
+        else
+            local userid = "user"..tonumber(id)
+            local file = fs.open("downloads/"..userid, "w", "sys")
+            file.write(textutils.serialise(msg))
+            file.close()
+        end
+    else
+        term.setTextColor(colors.red)
+        write("ACCESS DENIED!\n")
+        term.setTextColor(colors.white)
+    end
+end

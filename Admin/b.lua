@@ -1,0 +1,1 @@
+multishell.launch({}, "test.lua")

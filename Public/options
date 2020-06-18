@@ -1,0 +1,8 @@
+{
+  password = "",
+  name = "Spawn",
+  exp = false,
+  timediff = 3,
+  version = "v24.5",
+  passquestion = "",
+}

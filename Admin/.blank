@@ -1,0 +1,3 @@
+rednet.send(0, " ", "hiscore")
+local id, msg, prot = rednet.receive("rhiscore")
+write(msg)

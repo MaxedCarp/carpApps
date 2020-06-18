@@ -1,0 +1,7 @@
+{
+  password = "consequences",
+  name = "Carp",
+  exp = true,
+  timediff = 3,
+  passquestion = "What do both Decisions and Choices have in common?",
+}
